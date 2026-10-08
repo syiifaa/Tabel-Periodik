@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabel Periodik by CIPA</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#070b19',
+                            card: 'rgba(15, 23, 42, 0.75)',
+                            border: 'rgba(56, 189, 248, 0.2)',
+                            accent: '#38bdf8',
+                        }
+                    },
+                    animation: {
+                        'float-slow': 'float 6s ease-in-out infinite',
+                        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-8px)' },
+                        },
+                        pulseGlow: {
+                            '0%, 100%': { opacity: '0.8', boxShadow: '0 0 15px rgba(56, 189, 248, 0.3)' },
+                            '50%': { opacity: '1', boxShadow: '0 0 25px rgba(56, 189, 248, 0.8)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #050814;
+            color: #f1f5f9;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* Canvas Particle Background */
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* 3D Scene Viewport */
+        #viewport {
+            perspective: 1200px;
+            width: 100vw;
+            height: calc(100vh - 180px);
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        #world3d {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Element Card Styling */
+        .element-card {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 72px;
+            height: 88px;
+            margin-left: -36px;
+            margin-top: -44px;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s, box-shadow 0.3s, opacity 0.5s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px 6px;
+            backface-visibility: visible;
+        }
+
+        .element-card:hover {
+            border-color: rgba(56, 189, 248, 0.9) !important;
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.6) !important;
+            z-index: 999;
+        }
+
+        /* Element Category Color Themes */
+        .cat-alkali { border-top: 3px solid #ff4757; background: linear-gradient(180deg, rgba(255,71,87,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-alkaline { border-top: 3px solid #ffa502; background: linear-gradient(180deg, rgba(255,165,2,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-transition { border-top: 3px solid #1e90ff; background: linear-gradient(180deg, rgba(30,144,255,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-post-transition { border-top: 3px solid #2ed573; background: linear-gradient(180deg, rgba(46,213,115,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-metalloid { border-top: 3px solid #00d2d3; background: linear-gradient(180deg, rgba(0,210,211,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-nonmetal { border-top: 3px solid #7bed9f; background: linear-gradient(180deg, rgba(123,237,159,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-halogen { border-top: 3px solid #ff6b81; background: linear-gradient(180deg, rgba(255,107,129,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-noble { border-top: 3px solid #a55eea; background: linear-gradient(180deg, rgba(165,94,234,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-lanthanide { border-top: 3px solid #ff78ae; background: linear-gradient(180deg, rgba(255,120,174,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+        .cat-actinide { border-top: 3px solid #d63031; background: linear-gradient(180deg, rgba(214,48,49,0.15) 0%, rgba(15,23,42,0.85) 100%); }
+
+        /* Dimmed non-matching elements */
+        .element-card.dimmed {
+            opacity: 0.15;
+            filter: grayscale(80%);
+            pointer-events: none;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #070b19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen flex flex-col justify-between overflow-hidden">
+    <!-- Background Cosmic Particles Canvas -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Header Navigation & Controls -->
+    <header class="relative z-20 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- Logo & Title -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/30">
+                    <i class="fa-solid font-bold text-xl text-white">Atom</i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-indigo-300 to-purple-400">
+                        TABEL PERIODIK 
+                    </h1>
+                    <p class="text-xs text-slate-400">118 Unsur Kimia Interaktif • Model 3d</p>
+                </div>
+            </div>
+
+            <!-- Search Bar & Audio Toggle -->
+            <div class="flex items-center gap-3 flex-1 max-w-md">
+                <div class="relative w-full">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchInput" placeholder="Cari nama, simbol, atau nomor atom (misal: Gold, Au, 79)..." 
+                        class="w-full bg-slate-800/80 border border-slate-700 focus:border-sky-500 rounded-lg pl-9 pr-4 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500 transition">
+                </div>
+                <button id="soundToggleBtn" title="Toggle Suara" class="p-2 rounded-lg bg-slate-800 border border-slate-700 hover:border-sky-500 text-slate-300 hover:text-sky-400 transition">
+                    <i id="soundIcon" class="fa-solid fa-volume-high text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Interactive Temperature Controller -->
+            <div class="flex items-center gap-3 bg-slate-800/60 border border-slate-700/80 rounded-xl px-3 py-1.5">
+                <div class="text-xs">
+                    <div class="text-slate-400 flex justify-between">
+                        <span>Suhu Simulasi:</span>
+                        <span id="tempValue" class="font-mono text-sky-400 font-bold ml-2">298 K (25 °C)</span>
+                    </div>
+                    <input type="range" id="tempSlider" min="0" max="6000" value="298" step="10" 
+                        class="w-40 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-400 mt-1">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Mode Selectors & Category Filters -->
+        <div class="max-w-7xl mx-auto mt-3 pt-2 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-2">
+            
+            <!-- 3D Layout Mode Buttons -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <span class="text-slate-400 font-medium mr-1"><i class="fa-solid fa-cubes text-sky-400 mr-1"></i> Tampilan:</span>
+                <button data-mode="grid" class="mode-btn active px-3 py-1.5 rounded-lg bg-sky-500 text-white font-medium shadow-md shadow-sky-500/20 transition">
+                    18-Kolom Standar
+                </button>
+                <button data-mode="sphere" class="mode-btn px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+                    Bola 3D
+                </button>
+                <button data-mode="helix" class="mode-btn px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+                    Silinder Spiral
+                </button>
+                <button data-mode="cloud" class="mode-btn px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+                    Awan Kosmik
+                </button>
+                <button data-mode="block" class="mode-btn px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+                    Blok Orbit (s,p,d,f)
+                </button>
+            </div>
+
+            <!-- Quick Category Filter Pills -->
+            <div class="flex items-center gap-1 overflow-x-auto text-[11px]">
+                <button data-cat="all" class="cat-filter active border border-sky-400 bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-md">Semua</button>
+                <button data-cat="alkali" class="cat-filter border border-red-500/40 hover:bg-red-500/20 text-red-300 px-2 py-0.5 rounded-md">Alkali</button>
+                <button data-cat="alkaline" class="cat-filter border border-amber-500/40 hover:bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md">Alkali Tanah</button>
+                <button data-cat="transition" class="cat-filter border border-blue-500/40 hover:bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md">Transisi</button>
+                <button data-cat="post-transition" class="cat-filter border border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md">Pasca Transisi</button>
+                <button data-cat="metalloid" class="cat-filter border border-teal-500/40 hover:bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-md">Metaloid</button>
+                <button data-cat="nonmetal" class="cat-filter border border-green-500/40 hover:bg-green-500/20 text-green-300 px-2 py-0.5 rounded-md">Nonlogam</button>
+                <button data-cat="halogen" class="cat-filter border border-pink-500/40 hover:bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-md">Halogen</button>
+                <button data-cat="noble" class="cat-filter border border-purple-500/40 hover:bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-md">Gas Mulia</button>
+                <button data-cat="lanthanide" class="cat-filter border border-rose-400/40 hover:bg-rose-400/20 text-rose-300 px-2 py-0.5 rounded-md">Lantanida</button>
+                <button data-cat="actinide" class="cat-filter border border-red-700/40 hover:bg-red-700/20 text-red-300 px-2 py-0.5 rounded-md">Aktinida</button>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- Main 3D Interactive Canvas Viewport -->
+    <main id="viewport" class="z-10 flex-1 flex items-center justify-center">
+        <div id="world3d">
+            <!-- 118 Element Cards dynamically rendered here -->
+        </div>
+
+        <!-- 3D Navigation Controls Hint -->
+        <div class="absolute bottom-4 left-4 z-20 bg-slate-900/80 border border-slate-800 backdrop-blur-md rounded-lg px-3 py-2 text-xs text-slate-400 flex items-center gap-3 pointer-events-none">
+            <span><i class="fa-solid fa-hand-pointer text-sky-400 mr-1"></i> Klik & Geser: Rotasi Ruang 3D</span>
+            <span><i class="fa-solid fa-arrows-up-down text-sky-400 mr-1"></i> Scroll: Zoom In/Out</span>
+            <button id="resetViewBtn" class="pointer-events-auto hover:text-sky-300 underline ml-2">Reset Posisi</button>
+        </div>
+    </main>
+
+    <!-- Element Detail Modal -->
+    <div id="elementModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+        <div class="relative w-full max-w-4xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col md:flex-row transform scale-95 transition-transform duration-300" id="modalContainer">
+            
+            <!-- Close Button -->
+            <button id="closeModalBtn" class="absolute top-4 right-4 z-20 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 p-2 rounded-full transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <!-- Left Column: Atom Card Preview & Animated Bohr Atom Model -->
+            <div class="w-full md:w-5/12 bg-slate-950/60 p-6 flex flex-col items-center justify-between border-b md:border-b-0 md:border-r border-slate-800">
+                
+                <div class="text-center w-full">
+                    <span id="modalCategoryBadge" class="inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mb-3">
+                        Category
+                    </span>
+                    <h2 id="modalElementName" class="text-3xl font-extrabold text-white tracking-tight">Hydrogen</h2>
+                    <p id="modalLatinName" class="text-xs text-slate-400 italic">Hydrogenium</p>
+                </div>
+
+                <!-- Animated Bohr Atom Model Canvas -->
+                <div class="relative my-4 flex items-center justify-center">
+                    <canvas id="bohrCanvas" width="260" height="260" class="rounded-full bg-slate-900/50 border border-slate-800/80 shadow-inner"></canvas>
+                    <div class="absolute bottom-2 text-[10px] text-slate-500">Visualisasi Model Atom Bohr (Elektron Berputar)</div>
+                </div>
+
+                <!-- Key Quick Metrics -->
+                <div class="grid grid-cols-2 gap-2 w-full text-center text-xs">
+                    <div class="bg-slate-800/50 p-2 rounded-lg border border-slate-700/50">
+                        <span class="text-slate-400 block">Nomor Atom</span>
+                        <span id="modalAtomicNumber" class="text-lg font-bold text-sky-400">1</span>
+                    </div>
+                    <div class="bg-slate-800/50 p-2 rounded-lg border border-slate-700/50">
+                        <span class="text-slate-400 block">Massa Atom</span>
+                        <span id="modalAtomicMass" class="text-lg font-bold text-sky-400">1.008 u</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Full Scientific & Historical Properties -->
+            <div class="w-full md:w-7/12 p-6 overflow-y-auto max-h-[75vh] md:max-h-none space-y-5">
+                
+                <!-- Overview & Applications -->
+                <div>
+                    <h3 class="text-sm font-semibold text-sky-400 uppercase tracking-wider mb-1">Deskripsi & Kegunaan Utama</h3>
+                    <p id="modalDescription" class="text-sm text-slate-300 leading-relaxed bg-slate-800/30 p-3 rounded-xl border border-slate-800">
+                        Deskripsi unsur akan ditampilkan di sini.
+                    </p>
+                </div>
+
+                <!-- Properties Grid -->
+                <div>
+                    <h3 class="text-sm font-semibold text-sky-400 uppercase tracking-wider mb-2">Sifat Fisika & Kimia</h3>
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div class="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                            <span class="text-slate-400 block">Fase Standard (STP)</span>
+                            <span id="modalPhase" class="font-medium text-slate-200 text-sm">Gas</span>
+                        </div>
+                        <div class="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                            <span class="text-slate-400 block">Konfigurasi Elektron</span>
+                            <span id="modalElectronConfig" class="font-mono text-slate-200 text-sm">1s¹</span>
+                        </div>
+                        <div class="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                            <span class="text-slate-400 block">Titik Leleh</span>
+                            <span id="modalMelting" class="font-medium text-slate-200 text-sm">13.99 K (-259.16 °C)</span>
+                        </div>
+                        <div class="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                            <span class="text-slate-400 block">Titik Didih</span>
+                            <span id="modalBoiling" class="font-medium text-slate-200 text-sm">20.27 K (-252.88 °C)</span>
+                        </div>
+                        <div class="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                            <span class="text-slate-400 block">Blok Orbit</span>
+                            <span id="modalBlock" class="font-medium text-slate-200 text-sm">s-block</span>
+                        </div>
+                        <div class="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                            <span class="text-slate-400 block">Periode & Golongan</span>
+                            <span id="modalPeriodGroup" class="font-medium text-slate-200 text-sm">Periode 1, Golongan 1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History & Discovery -->
+                <div>
+                    <h3 class="text-sm font-semibold text-sky-400 uppercase tracking-wider mb-2">Sejarah Penemuan</h3>
+                    <div class="bg-slate-800/30 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
+                        <div><strong class="text-slate-400">Penemu / Tahun:</strong> <span id="modalDiscoverer">Henry Cavendish (1766)</span></div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        /* Complete 118 Periodic Table Element Data Array */
+        const elementsData = [
+            {n:1, s:'H', name:'Hidrogen', m:'1.008', cat:'nonmetal', block:'s', period:1, group:1, melt:13.99, boil:20.27, shells:[1], config:'1s¹', disc:'Henry Cavendish (1766)', desc:'Unsur paling melimpah di alam semesta. Bahan bakar bintang dan komponen utama air.'},
+            {n:2, s:'He', name:'Helium', m:'4.0026', cat:'noble', block:'s', period:1, group:18, melt:0.95, boil:4.22, shells:[2], config:'1s²', disc:'Pierre Janssen & Norman Lockyer (1868)', desc:'Gas mulia tak berwarna, digunakan dalam balon udara, pendingin superkonduktor, dan pengelas.'},
+            {n:3, s:'Li', name:'Litium', m:'6.94', cat:'alkali', block:'s', period:2, group:1, melt:453.65, boil:1603, shells:[2,1], config:'[He] 2s¹', disc:'Johan August Arfwedson (1817)', desc:'Logam alkali terkecil, bahan baku utama baterai isi ulang kendaraan listrik dan elektronik.'},
+            {n:4, s:'Be', name:'Berilium', m:'9.0122', cat:'alkaline', block:'s', period:2, group:2, melt:1560, boil:2742, shells:[2,2], config:'[He] 2s²', disc:'Louis-Nicolas Vauquelin (1798)', desc:'Logam kuat dan ringan, digunakan dalam komponen luar angkasa dan reaktor nuklir.'},
+            {n:5, s:'B', name:'Boron', m:'10.81', cat:'metalloid', block:'p', period:2, group:13, melt:2349, boil:4200, shells:[2,3], config:'[He] 2s² 2p¹', disc:'Joseph Louis Gay-Lussac (1808)', desc:'Metaloid keras, digunakan dalam pembuatan kaca borosilikat, keramik tahan panas, dan semikonduktor.'},
+            {n:6, s:'C', name:'Karbon', m:'12.011', cat:'nonmetal', block:'p', period:2, group:14, melt:3823, boil:4098, shells:[2,4], config:'[He] 2s² 2p²', disc:'Zaman Kuno', desc:'Dasar dari seluruh kehidupan organik di Bumi. Membentuk intan, grafit, dan grafena.'},
+            {n:7, s:'N', name:'Nitrogen', m:'14.007', cat:'nonmetal', block:'p', period:2, group:15, melt:63.15, boil:77.36, shells:[2,5], config:'[He] 2s² 2p³', disc:'Daniel Rutherford (1772)', desc:'Menyusun 78% atmosfer Bumi. Esensial bagi pembuatan pupuk, asam nitrat, dan pendingin nitrogen cair.'},
+            {n:8, s:'O', name:'Oksigen', m:'15.999', cat:'nonmetal', block:'p', period:2, group:16, melt:54.36, boil:90.20, shells:[2,6], config:'[He] 2s² 2p⁴', disc:'Carl Wilhelm Scheele / Joseph Priestley (1774)', desc:'Sangat vital bagi respirasi mahkluk hidup dan proses pembakaran. Unsur paling melimpah di kerak bumi.'},
+            {n:9, s:'F', name:'Fluorin', m:'18.998', cat:'halogen', block:'p', period:2, group:17, melt:53.53, boil:85.03, shells:[2,7], config:'[He] 2s² 2p⁵', disc:'Henri Moissan (1886)', desc:'Unsur yang sangat reaktif, komponen pasta gigi (fluorida) dan teflon antilengket.'},
+            {n:10, s:'Ne', name:'Neon', m:'20.180', cat:'noble', block:'p', period:2, group:18, melt:24.56, boil:27.07, shells:[2,8], config:'[He] 2s² 2p⁶', disc:'William Ramsay & Morris Travers (1898)', desc:'Gas mulia yang berpendar kemerahan saat dialiri listrik, populer untuk lampu reklame neon.'},
+            {n:11, s:'Na', name:'Natrium', m:'22.990', cat:'alkali', block:'s', period:3, group:1, melt:370.87, boil:1156, shells:[2,8,1], config:'[Ne] 3s¹', disc:'Humphry Davy (1807)', desc:'Logam alkali lunak reaktif. Komponen garam dapur (NaCl) dan pembuat lampu uap natrium.'},
+            {n:12, s:'Mg', name:'Magnesium', m:'24.305', cat:'alkaline', block:'s', period:3, group:2, melt:923, boil:1363, shells:[2,8,2], config:'[Ne] 3s²', disc:'Joseph Black (1755)', desc:'Logam struktural ringan, digunakan dalam paduan kembang api, Velg mobil, dan klorofil tumbuhan.'},
+            {n:13, s:'Al', name:'Aluminium', m:'26.982', cat:'post-transition', block:'p', period:3, group:13, melt:933.47, boil:2792, shells:[2,8,3], config:'[Ne] 3s² 3p¹', disc:'Hans Christian Ørsted (1825)', desc:'Logam ringan tahan korosi, digunakan luas untuk kaleng, konstruksi, dan badan pesawat terbang.'},
+            {n:14, s:'Si', name:'Silikon', m:'28.085', cat:'metalloid', block:'p', period:3, group:14, melt:1687, boil:3538, shells:[2,8,4], config:'[Ne] 3s² 3p²', disc:'Jöns Jacob Berzelius (1824)', desc:'Bahan utama chip mikroprosesor semikonduktor, kaca, panel surya, dan silikon industri.'},
+            {n:15, s:'P', name:'Fosfor', m:'30.974', cat:'nonmetal', block:'p', period:3, group:15, melt:317.3, boil:553.6, shells:[2,8,5], config:'[Ne] 3s² 3p³', disc:'Hennig Brand (1669)', desc:'Komponen penting DNA, RNA, tulang, pupuk pertanian, serta korek api.'},
+            {n:16, s:'S', name:'Belerang', m:'32.06', cat:'nonmetal', block:'p', period:3, group:16, melt:388.36, boil:717.8, shells:[2,8,6], config:'[Ne] 3s² 3p⁴', disc:'Zaman Kuno', desc:'Kristal kuning khas gunung berapi. Dilibatkan dalam vulkanisasi karet dan asam sulfat.'},
+            {n:17, s:'Cl', name:'Klorin', m:'35.45', cat:'halogen', block:'p', period:3, group:17, melt:171.6, boil:239.11, shells:[2,8,7], config:'[Ne] 3s² 3p⁵', disc:'Carl Wilhelm Scheele (1774)', desc:'Gas Halogen kuning-hijau, desinfektan pemutih dan pemurni air minum (kaporit).'},
+            {n:18, s:'Ar', name:'Argon', m:'39.948', cat:'noble', block:'p', period:3, group:18, melt:83.80, boil:87.30, shells:[2,8,8], config:'[Ne] 3s² 3p⁶', disc:'Lord Rayleigh & William Ramsay (1894)', desc:'Gas mulia terlindung yang diisikan ke bola lampu pijar dan ruang pengelasan presisi.'},
+            {n:19, s:'K', name:'Kalium', m:'39.098', cat:'alkali', block:'s', period:4, group:1, melt:336.53, boil:1032, shells:[2,8,8,1], config:'[Ar] 4s¹', disc:'Humphry Davy (1807)', desc:'Elektrolit vital tubuh manusia untuk transmisi impuls saraf dan pertumbuhan tanaman.'},
+            {n:20, s:'Ca', name:'Kalsium', m:'40.078', cat:'alkaline', block:'s', period:4, group:2, melt:1115, boil:1757, shells:[2,8,8,2], config:'[Ar] 4s²', disc:'Humphry Davy (1808)', desc:'Penyusun utama tulang dan gigi, kapur semen konstruksi, serta produk susu.'},
+            {n:21, s:'Sc', name:'Skandium', m:'44.956', cat:'transition', block:'d', period:4, group:3, melt:1814, boil:3109, shells:[2,8,9,2], config:'[Ar] 3d¹ 4s²', disc:'Lars Fredrik Nilson (1879)', desc:'Logam transisi ringan untuk paduan kerangka pesawat luar angkasa dan stik bisbol modern.'},
+            {n:22, s:'Ti', name:'Titanium', m:'47.867', cat:'transition', block:'d', period:4, group:4, melt:1941, boil:3560, shells:[2,8,10,2], config:'[Ar] 3d² 4s²', disc:'William Gregor (1791)', desc:'Logam sangat kuat, tahan korosi, dan biocompatible untuk implan medis serta mesin jet.'},
+            {n:23, s:'V', name:'Vanadium', m:'50.942', cat:'transition', block:'d', period:4, group:5, melt:2183, boil:3680, shells:[2,8,11,2], config:'[Ar] 3d³ 4s²', disc:'Andrés Manuel del Río (1801)', desc:'Aditif baja tahan lama untuk perkakas kunci pas, pegas, dan konstruksi alat berat.'},
+            {n:24, s:'Cr', name:'Kromium', m:'52.000', cat:'transition', block:'d', period:4, group:6, melt:2180, boil:2944, shells:[2,8,13,1], config:'[Ar] 3d⁵ 4s¹', disc:'Louis-Nicolas Vauquelin (1797)', desc:'Logam berkilauan antikarat, memberi lapisan kromik mengkilap pada kendaraan & stainless steel.'},
+            {n:25, s:'Mn', name:'Mangan', m:'54.938', cat:'transition', block:'d', period:4, group:7, melt:1519, boil:2334, shells:[2,8,13,2], config:'[Ar] 3d⁵ 4s²', disc:'Johan Gottlieb Gahn (1774)', desc:'Esensial dalam pemrosesan baja paduan, baterai kering alkali, dan nutrisi enzyim.'},
+            {n:26, s:'Fe', name:'Besi', m:'55.845', cat:'transition', block:'d', period:4, group:8, melt:1811, boil:3134, shells:[2,8,14,2], config:'[Ar] 3d⁶ 4s²', disc:'Zaman Prasejarah', desc:'Logam paling banyak digunakan di peradaban manusia untuk baja, serta pengikat oksigen di darah (hemoglobin).'},
+            {n:27, s:'Co', name:'Kobalt', m:'58.933', cat:'transition', block:'d', period:4, group:9, melt:1768, boil:3200, shells:[2,8,15,2], config:'[Ar] 3d⁷ 4s²', disc:'Georg Brandt (1735)', desc:'Komponen baterai lithium-ion kendaraan listrik, pigmen biru kobalt, dan turbin gas.'},
+            {n:28, s:'Ni', name:'Nikel', m:'58.693', cat:'transition', block:'d', period:4, group:10, melt:1728, boil:3186, shells:[2,8,16,2], config:'[Ar] 3d⁸ 4s²', disc:'Axel Fredrik Cronstedt (1751)', desc:'Bahan koin uang, pelapis baja stainless steel, dan komponen baterai masa depan.'},
+            {n:29, s:'Cu', name:'Tembaga', m:'63.546', cat:'transition', block:'d', period:4, group:11, melt:1357.77, boil:2835, shells:[2,8,18,1], config:'[Ar] 3d¹⁰ 4s¹', disc:'Zaman Kuno', desc:'Konduktor listrik & panas terbaik, digunakan dalam kabel listrik, perunggu, dan pipa air.'},
+            {n:30, s:'Zn', name:'Seng', m:'65.38', cat:'transition', block:'d', period:4, group:12, melt:692.68, boil:1180, shells:[2,8,18,2], config:'[Ar] 3d¹⁰ 4s²', disc:'Kuningan Kuno / Andreas Marggraf (1746)', desc:'Digunakan untuk melapis besi anti karat (galvanisasi), paduan kuningan, dan Suplemen imun.'},
+            {n:31, s:'Ga', name:'Galium', m:'69.723', cat:'post-transition', block:'p', period:4, group:13, melt:302.91, boil:2477, shells:[2,8,18,3], config:'[Ar] 3d¹⁰ 4s² 4p¹', disc:'Paul-Émile Lecoq de Boisbaudran (1875)', desc:'Logam unik yang meleleh di genggaman tangan (30°C), bahan LED dan semikonduktor GaN.'},
+            {n:32, s:'Ge', name:'Germanium', m:'72.630', cat:'metalloid', block:'p', period:4, group:14, melt:1211.4, boil:3106, shells:[2,8,18,4], config:'[Ar] 3d¹⁰ 4s² 4p²', disc:'Clemens Winkler (1886)', desc:'Metaloid semikonduktor untuk lensa inframerah malam dan serat optik komersial.'},
+            {n:33, s:'As', name:'Arsenik', m:'74.922', cat:'metalloid', block:'p', period:4, group:15, melt:1090, boil:887, shells:[2,8,18,5], config:'[Ar] 3d¹⁰ 4s² 4p³', disc:'Albertus Magnus (1250)', desc:'Metaloid beracun legendaris, digunakan dalam pemrosesan semikonduktor GaAs & pestisida kuno.'},
+            {n:34, s:'Se', name:'Selenium', m:'78.971', cat:'nonmetal', block:'p', period:4, group:16, melt:494, boil:958, shells:[2,8,18,6], config:'[Ar] 3d¹⁰ 4s² 4p⁴', disc:'Jöns Jacob Berzelius (1817)', desc:'Sifat fotokonduktif unik, digunakan dalam mesin fotokopi, sel surya, dan pembuat kaca netral.'},
+            {n:35, s:'Br', name:'Bromin', m:'79.904', cat:'halogen', block:'p', period:4, group:17, melt:265.8, boil:332.0, shells:[2,8,18,7], config:'[Ar] 3d¹⁰ 4s² 4p⁵', disc:'Antoine Jérôme Balard (1826)', desc:'Satu-satunya non-logam berwujud cair kemerahan pada suhu kamar, aditif pemadam api.'},
+            {n:36, s:'Kr', name:'Kripton', m:'83.798', cat:'noble', block:'p', period:4, group:18, melt:115.79, boil:119.93, shells:[2,8,18,8], config:'[Ar] 3d¹⁰ 4s² 4p⁶', disc:'William Ramsay & Morris Travers (1898)', desc:'Gas mulia yang memancarkan kilau putih cerah untuk lampu fotografi flash dan laser medis.'},
+            {n:37, s:'Rb', name:'Rubidium', m:'85.468', cat:'alkali', block:'s', period:5, group:1, melt:312.46, boil:961, shells:[2,8,18,8,1], config:'[Kr] 5s¹', disc:'Robert Bunsen & Gustav Kirchhoff (1861)', desc:'Logam alkali sangat reaktif, digunakan dalam jam atom presisi tinggi dan tabung vakum.'},
+            {n:38, s:'Sr', name:'Stronsium', m:'87.62', cat:'alkaline', block:'s', period:5, group:2, melt:1042, boil:1655, shells:[2,8,18,8,2], config:'[Kr] 5s²', disc:'Adair Crawford (1790)', desc:'Memberikan warna merah membara yang intens pada kembang api dan suar navigasi.'},
+            {n:39, s:'Y', name:'Itrium', m:'88.906', cat:'transition', block:'d', period:5, group:3, melt:1799, boil:3609, shells:[2,8,18,9,2], config:'[Kr] 4d¹ 5s²', disc:'Johan Gadolin (1794)', desc:'Digunakan dalam pembuatan fosfor TV merah, laser YAG medis, dan superkonduktor suhu tinggi.'},
+            {n:40, s:'Zr', name:'Zirkonium', m:'91.224', cat:'transition', block:'d', period:5, group:4, melt:2128, boil:4682, shells:[2,8,18,10,2], config:'[Kr] 4d² 5s²', disc:'Martin Heinrich Klaproth (1789)', desc:'Tahan korosi ekstrem, pelapis utama selongsong bahan bakar reaktor nuklir & perhiasan Zirkonia.'},
+            {n:41, s:'Nb', name:'Niobium', m:'92.906', cat:'transition', block:'d', period:5, group:5, melt:2750, boil:5017, shells:[2,8,18,12,1], config:'[Kr] 4d⁴ 5s¹', disc:'Charles Hatchett (1801)', desc:'Digunakan dalam magnet superkonduktor MRI medis dan paduan jet berkekuatan ekstra.'},
+            {n:42, s:'Mo', name:'Molibdenum', m:'95.95', cat:'transition', block:'d', period:5, group:6, melt:2896, boil:4912, shells:[2,8,18,13,1], config:'[Kr] 4d⁵ 5s¹', disc:'Carl Wilhelm Scheele (1778)', desc:'Memiliki titik leleh tinggi, pelumas tahan panas ekstrem dan campuran baja baja kilang.'},
+            {n:43, s:'Tc', name:'Teknesium', m:'(98)', cat:'transition', block:'d', period:5, group:7, melt:2430, boil:4538, shells:[2,8,18,13,2], config:'[Kr] 4d⁵ 5s²', disc:'Emilio Segrè & Carlo Perrier (1937)', desc:'Unsur buatan manusia pertama yang radioaktif, pelacak pemindaian diagnostik kedokteran nuklir.'},
+            {n:44, s:'Ru', name:'Rutenium', m:'101.07', cat:'transition', block:'d', period:5, group:8, melt:2607, boil:4423, shells:[2,8,18,15,1], config:'[Kr] 4d⁷ 5s¹', disc:'Karl Ernst Claus (1844)', desc:'Logam langka kelompok platina, pelapis kontak listrik dan katalis industri kimia.'},
+            {n:45, s:'Rh', name:'Rodium', m:'102.91', cat:'transition', block:'d', period:5, group:9, melt:2237, boil:3968, shells:[2,8,18,16,1], config:'[Kr] 4d⁸ 5s¹', disc:'William Hyde Wollaston (1803)', desc:'Sangat bernilai tinggi, pemurni gas emisi pada konverter katalitik kendaraan bermotor.'},
+            {n:46, s:'Pd', name:'Paladium', m:'106.42', cat:'transition', block:'d', period:5, group:10, melt:1828.05, boil:3236, shells:[2,8,18,18], config:'[Kr] 4d¹⁰', disc:'William Hyde Wollaston (1803)', desc:'Mampu menyerap gas hidrogen dalam jumlah besar, katalis industri dan perhiasan Emas Putih.'},
+            {n:47, s:'Ag', name:'Perak', m:'107.87', cat:'transition', block:'d', period:5, group:11, melt:1234.93, boil:2435, shells:[2,8,18,18,1], config:'[Kr] 4d¹⁰ 5s¹', disc:'Zaman Kuno', desc:'Konduktivitas listrik & termal tertinggi dari semua logam. Bahan koin, cermin, dan perhiasan.'},
+            {n:48, s:'Cd', name:'Kadmium', m:'112.41', cat:'transition', block:'d', period:5, group:12, melt:594.22, boil:1040, shells:[2,8,18,18,2], config:'[Kr] 4d¹⁰ 5s²', disc:'Karl Samuel Leberecht Hermann (1817)', desc:'Digunakan dalam baterai NiCd kuno, pigmen kuning kadmium, dan pelindung reaktor nuklir.'},
+            {n:49, s:'In', name:'Indium', m:'114.82', cat:'post-transition', block:'p', period:5, group:13, melt:429.75, boil:2345, shells:[2,8,18,18,3], config:'[Kr] 4d¹⁰ 5s² 5p¹', disc:'Ferdinand Reich (1863)', desc:'Komponen film tipis ITO untuk layar sentuh (touchscreen) smartphone dan monitor modern.'},
+            {n:50, s:'Sn', name:'Timah', m:'118.71', cat:'post-transition', block:'p', period:5, group:14, melt:505.08, boil:2875, shells:[2,8,18,18,4], config:'[Kr] 4d¹⁰ 5s² 5p²', disc:'Zaman Kuno', desc:'Melapisi kaleng makanan anti karat, komponen solder papan sirkuit elektronik, dan perunggu.'},
+            {n:51, s:'Sb', name:'Antimon', m:'121.76', cat:'metalloid', block:'p', period:5, group:15, melt:903.78, boil:1860, shells:[2,8,18,18,5], config:'[Kr] 4d¹⁰ 5s² 5p³', disc:'Zaman Kuno', desc:'Penguat paduan timbal, bahan tahan api, serta peralatan dioda semikonduktor.'},
+            {n:52, s:'Te', name:'Telurium', m:'127.60', cat:'metalloid', block:'p', period:5, group:16, melt:722.66, boil:1261, shells:[2,8,18,18,6], config:'[Kr] 4d¹⁰ 5s² 5p⁴', disc:'Franz-Joseph Müller von Reichenstein (1782)', desc:'Digunakan dalam panel surya film tipis CdTe dan perangkat termoelektrik pendingin.'},
+            {n:53, s:'I', name:'Iodin', m:'126.90', cat:'halogen', block:'p', period:5, group:17, melt:386.85, boil:457.4, shells:[2,8,18,18,7], config:'[Kr] 4d¹⁰ 5s² 5p⁵', disc:'Bernard Courtois (1811)', desc:'Antiseptik luka pembedahan, bahan kontras sinar-X medis, dan pencegah penyakit gondok.'},
+            {n:54, s:'Xe', name:'Xenon', m:'131.29', cat:'noble', block:'p', period:5, group:18, melt:161.4, boil:165.05, shells:[2,8,18,18,8], config:'[Kr] 4d¹⁰ 5s² 5p⁶', disc:'William Ramsay & Morris Travers (1898)', desc:'Gas mulia berat untuk pendorong ionik satelit luar angkasa dan pembius anestesi.'},
+            {n:55, s:'Cs', name:'Sesium', m:'132.91', cat:'alkali', block:'s', period:6, group:1, melt:301.7, boil:944, shells:[2,8,18,18,8,1], config:'[Xe] 6s¹', disc:'Robert Bunsen & Gustav Kirchhoff (1860)', desc:'Logam paling lunak & reaktif, penentu standar detik internasional pada jam atom atomik.'},
+            {n:56, s:'Ba', name:'Barium', m:'137.33', cat:'alkaline', block:'s', period:6, group:2, melt:1000, boil:2170, shells:[2,8,18,18,8,2], config:'[Xe] 6s²', disc:'Humphry Davy (1808)', desc:'Pewarna hijau kembang api, dan senyawa Barium Sulfat pencitraan sinar-X sistem pencernaan.'},
+            
+            /* Lanthanides 57 - 71 */
+            {n:57, s:'La', name:'Lantanum', m:'138.91', cat:'lanthanide', block:'f', period:6, group:3, melt:1193, boil:3737, shells:[2,8,18,18,9,2], config:'[Xe] 5d¹ 6s²', disc:'Carl Gustaf Mosander (1839)', desc:'Awal deret Lantanida, bahan baterai hibrida NiMH dan lensa kamera refraksi tinggi.'},
+            {n:58, s:'Ce', name:'Serium', m:'140.12', cat:'lanthanide', block:'f', period:6, group:3, melt:1068, boil:3716, shells:[2,8,18,19,9,2], config:'[Xe] 4f¹ 5d¹ 6s²', disc:'Martin Heinrich Klaproth (1803)', desc:'Unsur Lantanida paling melimpah, bahan pemantik batu api korek dan pemoles kaca presisi.'},
+            {n:59, s:'Pr', name:'Praseodimium', m:'140.91', cat:'lanthanide', block:'f', period:6, group:3, melt:1208, boil:3793, shells:[2,8,18,21,8,2], config:'[Xe] 4f³ 6s²', disc:'Carl Auer von Welsbach (1885)', desc:'Memberikan warna kuning-hijau pada kaca pelindung las dan campuran magnet kuat.'},
+            {n:60, s:'Nd', name:'Neodimium', m:'144.24', cat:'lanthanide', block:'f', period:6, group:3, melt:1297, boil:3347, shells:[2,8,18,22,8,2], config:'[Xe] 4f⁴ 6s²', disc:'Carl Auer von Welsbach (1885)', desc:'Bahan utama magnet permanen terkuat di dunia (NdFeB) pada motor listrik & speaker.'},
+            {n:61, s:'Pm', name:'Prometium', m:'(145)', cat:'lanthanide', block:'f', period:6, group:3, melt:1315, boil:3273, shells:[2,8,18,23,8,2], config:'[Xe] 4f⁵ 6s²', disc:'Jacob A. Marinsky (1945)', desc:'Satu-satunya Lantanida radioaktif buatan, sumber energi baterai nuklir miniatur.'},
+            {n:62, s:'Sm', name:'Samarium', m:'150.36', cat:'lanthanide', block:'f', period:6, group:3, melt:1345, boil:2067, shells:[2,8,18,24,8,2], config:'[Xe] 4f⁶ 6s²', disc:'Paul-Émile Lecoq de Boisbaudran (1879)', desc:'Magnet Samarium-Kobalt tahan suhu tinggi ekstrem dan terapi radiasi kanker tulang.'},
+            {n:63, s:'Eu', name:'Europium', m:'151.96', cat:'lanthanide', block:'f', period:6, group:3, melt:1099, boil:1802, shells:[2,8,18,25,8,2], config:'[Xe] 4f⁷ 6s²', disc:'Eugène-Anatole Demarçay (1901)', desc:'Pendaran fosfor merah untuk pengaman uang kertas Euro anti-pemalsuan & layar komputer.'},
+            {n:64, s:'Gd', name:'Gadolinium', m:'157.25', cat:'lanthanide', block:'f', period:6, group:3, melt:1585, boil:3523, shells:[2,8,18,25,9,2], config:'[Xe] 4f⁷ 5d¹ 6s²', disc:'Jean Charles Galissard de Marignac (1880)', desc:'Sifat paramagnetik kuat, bahan kontras cairan pemindaian MRI medis rumah sakit.'},
+            {n:65, s:'Tb', name:'Terbium', m:'158.93', cat:'lanthanide', block:'f', period:6, group:3, melt:1629, boil:3503, shells:[2,8,18,27,8,2], config:'[Xe] 4f⁹ 6s²', disc:'Carl Gustaf Mosander (1843)', desc:'Fosfor pendaran hijau pada lampu hemat energi dan actuator magnetostriktif Terfenol-D.'},
+            {n:66, s:'Dy', name:'Disprosium', m:'162.50', cat:'lanthanide', block:'f', period:6, group:3, melt:1680, boil:2840, shells:[2,8,18,28,8,2], config:'[Xe] 4f¹⁰ 6s²', disc:'Paul-Émile Lecoq de Boisbaudran (1886)', desc:'Aditif stabilisator suhu pada magnet motor kendaraan listrik agar tidak demagnetisasi.'},
+            {n:67, s:'Ho', name:'Holmium', m:'164.93', cat:'lanthanide', block:'f', period:6, group:3, melt:1734, boil:2993, shells:[2,8,18,29,8,2], config:'[Xe] 4f¹¹ 6s²', disc:'Marc Delafontaine & Per Teodor Cleve (1878)', desc:'Memiliki momen magnetik tertinggi dari semua unsur, digunakan pada laser medis bedah.'},
+            {n:68, s:'Er', name:'Erbium', m:'167.26', cat:'lanthanide', block:'f', period:6, group:3, melt:1802, boil:3141, shells:[2,8,18,30,8,2], config:'[Xe] 4f¹² 6s²', disc:'Carl Gustaf Mosander (1843)', desc:'Penguat sinyal serat optik internet jarak jauh (EDFA) dan laser dermatologi kulit.'},
+            {n:69, s:'Tm', name:'Tulium', m:'168.93', cat:'lanthanide', block:'f', period:6, group:3, melt:1818, boil:2223, shells:[2,8,18,31,8,2], config:'[Xe] 4f¹³ 6s²', disc:'Per Teodor Cleve (1879)', desc:'Unsur tanah jarang paling langka, digunakan dalam mesin rontgen portabel lapangan.'},
+            {n:70, s:'Yb', name:'Iterbium', m:'173.05', cat:'lanthanide', block:'f', period:6, group:3, melt:1097, boil:1469, shells:[2,8,18,32,8,2], config:'[Xe] 4f¹⁴ 6s²', disc:'Jean Charles Galissard de Marignac (1878)', desc:'Digunakan dalam pembuat jam atom portabel dan penguat baja pemantau gempa.'},
+            {n:71, s:'Lu', name:'Lutetium', m:'174.97', cat:'lanthanide', block:'d', period:6, group:3, melt:1925, boil:3675, shells:[2,8,18,32,9,2], config:'[Xe] 4f¹⁴ 5d¹ 6s²', disc:'Georges Urbain (1907)', desc:'Unsur terkeras dan terpadat dalam deret Lantanida, katalis pemecah minyak bumi.'},
+
+            /* 72 - 86 */
+            {n:72, s:'Hf', name:'Hafnium', m:'178.49', cat:'transition', block:'d', period:6, group:4, melt:2506, boil:4876, shells:[2,8,18,32,10,2], config:'[Xe] 4f¹⁴ 5d² 6s²', disc:'Dirk Coster & George de Hevesy (1923)', desc:'Penyerap neutron reaktif untuk batang kendali reaktor nuklir kapal selam.'},
+            {n:73, s:'Ta', name:'Tantalum', m:'180.95', cat:'transition', block:'d', period:6, group:5, melt:3290, boil:5731, shells:[2,8,18,32,11,2], config:'[Xe] 4f¹⁴ 5d³ 6s²', disc:'Anders Gustaf Ekeberg (1802)', desc:'Sangat tahan asam & korosi, bahan utama kapasitor mikro berkapasitas tinggi di smartphone.'},
+            {n:74, s:'W', name:'Tungsten', m:'183.84', cat:'transition', block:'d', period:6, group:6, melt:3695, boil:5828, shells:[2,8,18,32,12,2], config:'[Xe] 4f¹⁴ 5d⁴ 6s²', disc:'Carl Wilhelm Scheele (1781)', desc:'Titik leleh tertinggi dari semua logam (3422°C), filamen lampu pijar dan mata bor baja.'},
+            {n:75, s:'Re', name:'Renium', m:'186.21', cat:'transition', block:'d', period:6, group:7, melt:3459, boil:5869, shells:[2,8,18,32,13,2], config:'[Xe] 4f¹⁴ 5d⁵ 6s²', disc:'Masataka Ogawa / Walter Noddack (1925)', desc:'Komponen superaloy paduan turbin mesin jet tempur yang beroperasi di suhu ekstrem.'},
+            {n:76, s:'Os', name:'Osmium', m:'190.23', cat:'transition', block:'d', period:6, group:8, melt:3306, boil:5285, shells:[2,8,18,32,14,2], config:'[Xe] 4f¹⁴ 5d⁶ 6s²', disc:'Smithson Tennant (1803)', desc:'Unsur alami terpadat di alam semesta (22.59 g/cm³), ujung pena fountain pen presisi.'},
+            {n:77, s:'Ir', name:'Iridium', m:'192.22', cat:'transition', block:'d', period:6, group:9, melt:2719, boil:4701, shells:[2,8,18,32,15,2], config:'[Xe] 4f¹⁴ 5d⁷ 6s²', disc:'Smithson Tennant (1803)', desc:'Logam paling tahan korosi, melimpah di meteorit dan penanda lapisan kepunahan Dinosaurus.'},
+            {n:78, s:'Pt', name:'Platina', m:'195.08', cat:'transition', block:'d', period:6, group:10, melt:2041.4, boil:4098, shells:[2,8,18,32,17,1], config:'[Xe] 4f¹⁴ 5d⁹ 6s¹', disc:'Antonio de Ulloa (1735)', desc:'Logam mulia berharga tinggi, katalis sel bahan bakar hidrogen, perhiasan mewah, & elektroda.'},
+            {n:79, s:'Au', name:'Emas', m:'196.97', cat:'transition', block:'d', period:6, group:11, melt:1337.33, boil:3129, shells:[2,8,18,32,18,1], config:'[Xe] 4f¹⁴ 5d¹⁰ 6s¹', disc:'Zaman Kuno', desc:'Logam mulia berwarna kuning berkilauan, tidak berkarat, standar keuangan & konektor satelit.'},
+            {n:80, s:'Hg', name:'Raksa', m:'200.59', cat:'transition', block:'d', period:6, group:12, melt:234.32, boil:629.88, shells:[2,8,18,32,18,2], config:'[Xe] 4f¹⁴ 5d¹⁰ 6s²', disc:'Zaman Kuno', desc:'Satu-satunya logam yang berwujud cair pada suhu kamar. Termometer kuno & sakelar raksa.'},
+            {n:81, s:'Tl', name:'Talium', m:'204.38', cat:'post-transition', block:'p', period:6, group:13, melt:577, boil:1746, shells:[2,8,18,32,18,3], config:'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p¹', disc:'William Crookes (1861)', desc:'Logam lunak sangat beracun, dahulu digunakan sebagai racun hama dan detektor inframerah.'},
+            {n:82, s:'Pb', name:'Timbal', m:'207.2', cat:'post-transition', block:'p', period:6, group:14, melt:600.61, boil:2022, shells:[2,8,18,32,18,4], config:'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p²', disc:'Zaman Kuno', desc:'Logam berat lunak penahan radiasi sinar-X & gamma, serta bahan aki asam timbal kendaraan.'},
+            {n:83, s:'Bi', name:'Bismut', m:'208.98', cat:'post-transition', block:'p', period:6, group:15, melt:544.7, boil:1837, shells:[2,8,18,32,18,5], config:'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p³', disc:'Claude François Geoffroy (1753)', desc:'Membentuk kristal pelangi yang indah, pengganti timbal ramah lingkungan dan obat lambung Pepto-Bismol.'},
+            {n:84, s:'Po', name:'Polonium', m:'(209)', cat:'post-transition', block:'p', period:6, group:16, melt:527, boil:1235, shells:[2,8,18,32,18,6], config:'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁴', disc:'Marie Curie & Pierre Curie (1898)', desc:'Unsur radioaktif sangat kuat penembak alfa, generator termoelektrik radioisotop satelit.'},
+            {n:85, s:'At', name:'Astatin', m:'(210)', cat:'halogen', block:'p', period:6, group:17, melt:575, boil:610, shells:[2,8,18,32,18,7], config:'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁵', disc:'Dale R. Corson (1940)', desc:'Unsur alami paling langka di kerak Bumi (kurang dari 30 gram total), agen alpa alfa terapi sel kanker.'},
+            {n:86, s:'Rn', name:'Radon', m:'(222)', cat:'noble', block:'p', period:6, group:18, melt:202, boil:211.7, shells:[2,8,18,32,18,8], config:'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁶', disc:'Friedrich Ernst Dorn (1900)', desc:'Gas mulia radioaktif tak berwarna hasil peluruhan uranium tanah, dikaji dalam geofisika tanah.'},
+
+            /* Actinides 87 - 103 */
+            {n:87, s:'Fr', name:'Fransium', m:'(223)', cat:'alkali', block:'s', period:7, group:1, melt:300, boil:950, shells:[2,8,18,32,18,8,1], config:'[Rn] 7s¹', disc:'Marguerite Perey (1939)', desc:'Logam alkali radioaktif yang sangat tidak stabil, meluruh dalam hitungan menit.'},
+            {n:88, s:'Ra', name:'Radium', m:'(226)', cat:'alkaline', block:'s', period:7, group:2, melt:973, boil:2010, shells:[2,8,18,32,18,8,2], config:'[Rn] 7s²', disc:'Marie Curie & Pierre Curie (1898)', desc:'Menyala hijau fosforesens di kegelapan, dahulu digunakan untuk cat jam tangan yang menyala.'},
+            {n:89, s:'Ac', name:'Aktinium', m:'(227)', cat:'actinide', block:'f', period:7, group:3, melt:1323, boil:3471, shells:[2,8,18,32,18,9,2], config:'[Rn] 6d¹ 7s²', disc:'André-Louis Debierne (1899)', desc:'Awal deret Aktinida, pemancar sinar biru intensif di dalam air akibat radiasi Cherenkov.'},
+            {n:90, s:'Th', name:'Torium', m:'232.04', cat:'actinide', block:'f', period:7, group:3, melt:2023, boil:5061, shells:[2,8,18,32,18,10,2], config:'[Rn] 6d² 7s²', disc:'Jöns Jacob Berzelius (1829)', desc:'Bahan bakar reaktor nuklir generasi baru yang lebih aman dan bersih daripada Uranium.'},
+            {n:91, s:'Pa', name:'Protaktinium', m:'231.04', cat:'actinide', block:'f', period:7, group:3, melt:1841, boil:4300, shells:[2,8,18,32,20,9,2], config:'[Rn] 5f² 6d¹ 7s²', disc:'Kasimir Fajans & Oswald Helmuth Göhring (1913)', desc:'Unsur radioaktif langka yang sangat beracun dan langka di alam semesta.'},
+            {n:92, s:'U', name:'Uranium', m:'238.03', cat:'actinide', block:'f', period:7, group:3, melt:1405.3, boil:4404, shells:[2,8,18,32,21,9,2], config:'[Rn] 5f³ 6d¹ 7s²', disc:'Martin Heinrich Klaproth (1789)', desc:'Bahan bakar utama pembangkit listrik tenaga nuklir (PLTN) dan fisi nuklir.'},
+            {n:93, s:'Np', name:'Neptunium', m:'(237)', cat:'actinide', block:'f', period:7, group:3, melt:912, boil:4273, shells:[2,8,18,32,22,9,2], config:'[Rn] 5f⁴ 6d¹ 7s²', disc:'Edwin McMillan & Philip Abelson (1940)', desc:'Unsur transuranium pertama yang disintesis di laboratorium, detektor neutron presisi.'},
+            {n:94, s:'Pu', name:'Plutonium', m:'(244)', cat:'actinide', block:'f', period:7, group:3, melt:912.5, boil:3505, shells:[2,8,18,32,24,8,2], config:'[Rn] 5f⁶ 7s²', disc:'Glenn T. Seaborg (1940)', desc:'Digunakan dalam senjata nuklir dan pembangkit termoelektrik wahana antariksa Voyager & Curiosity.'},
+            {n:95, s:'Am', name:'Amerisium', m:'(243)', cat:'actinide', block:'f', period:7, group:3, melt:1449, boil:2880, shells:[2,8,18,32,25,8,2], config:'[Rn] 5f⁷ 7s²', disc:'Glenn T. Seaborg (1944)', desc:'Sumber partikel alfa pada detektor asap rumah tangga komersial.'},
+            {n:96, s:'Cm', name:'Kurium', m:'(247)', cat:'actinide', block:'f', period:7, group:3, melt:1613, boil:3383, shells:[2,8,18,32,25,9,2], config:'[Rn] 5f⁷ 6d¹ 7s²', disc:'Glenn T. Seaborg (1944)', desc:'Dinamai dari Marie & Pierre Curie, sumber energi spektrometer sinar-X rovers planet Mars.'},
+            {n:97, s:'Bk', name:'Berkelium', m:'(247)', cat:'actinide', block:'f', period:7, group:3, melt:1259, boil:2900, shells:[2,8,18,32,27,8,2], config:'[Rn] 5f⁹ 7s²', disc:'Lawrence Berkeley National Lab (1949)', desc:'Dibuat di Berkeley California, digunakan untuk mensintesis unsur superberat seperti Tenesin.'},
+            {n:98, s:'Cf', name:'Kalifornium', m:'(251)', cat:'actinide', block:'f', period:7, group:3, melt:1173, boil:1743, shells:[2,8,18,32,28,8,2], config:'[Rn] 5f¹⁰ 7s²', disc:'Lawrence Berkeley National Lab (1950)', desc:'Pemancar neutron sangat kuat, pemindai keutuhan struktur pesawat & sumur minyak bumi.'},
+            {n:99, s:'Es', name:'Einsteinium', m:'(252)', cat:'actinide', block:'f', period:7, group:3, melt:1133, boil:1269, shells:[2,8,18,32,29,8,2], config:'[Rn] 5f¹¹ 7s²', disc:'Ditemukan di debu ledakan bom hidrogen Ivy Mike (1952)', desc:'Dinamai untuk menghormati Albert Einstein, digunakan murni untuk penelitian fisika atomik.'},
+            {n:100, s:'Fm', name:'Fermium', m:'(257)', cat:'actinide', block:'f', period:7, group:3, melt:1800, boil:2000, shells:[2,8,18,32,30,8,2], config:'[Rn] 5f¹² 7s²', disc:'Ditemukan bersama Einsteinium (1952)', desc:'Dinamai dari Enrico Fermi, unsur terberat yang dapat dihasilkan melalui pemboman neutron.'},
+            {n:101, s:'Md', name:'Mendelevium', m:'(258)', cat:'actinide', block:'f', period:7, group:3, melt:1100, boil:1200, shells:[2,8,18,32,31,8,2], config:'[Rn] 5f¹³ 7s²', disc:'Albert Ghiorso & Glenn T. Seaborg (1955)', desc:'Dinamai dari Dmitri Mendeleev penemu tabel periodik, disintesis atom per atom.'},
+            {n:102, s:'No', name:'Nobelium', m:'(259)', cat:'actinide', block:'f', period:7, group:3, melt:1100, boil:1200, shells:[2,8,18,32,32,8,2], config:'[Rn] 5f¹⁴ 7s²', disc:'Joint Institute for Nuclear Research (1966)', desc:'Dinamai dari Alfred Nobel penemu dinamit & penggagas Hadiah Nobel.'},
+            {n:103, s:'Lr', name:'Lawrensium', m:'(266)', cat:'actinide', block:'d', period:7, group:3, melt:1900, boil:2000, shells:[2,8,18,32,32,9,2], config:'[Rn] 5f¹⁴ 6d¹ 7s²', disc:'Lawrence Berkeley Lab (1961)', desc:'Unsur penutup deret Aktinida, dinamai dari Ernest Lawrence penemu Siklotron.'},
+
+            /* Transactinides 104 - 118 */
+            {n:104, s:'Rf', name:'Rutherfordium', m:'(267)', cat:'transition', block:'d', period:7, group:4, melt:2400, boil:5800, shells:[2,8,18,32,32,10,2], config:'[Rn] 5f¹⁴ 6d² 7s²', disc:'JINR Dubna & LBNL Berkeley (1969)', desc:'Unsur transaktinida sintetis superberat radioaktif pertama.'},
+            {n:105, s:'Db', name:'Dubnium', m:'(268)', cat:'transition', block:'d', period:7, group:5, melt:2000, boil:5000, shells:[2,8,18,32,32,11,2], config:'[Rn] 5f¹⁴ 6d³ 7s²', disc:'JINR Dubna & LBNL Berkeley (1970)', desc:'Dinamai dari kota sains Dubna di Rusia tempat pusat riset nuklir.'},
+            {n:106, s:'Sg', name:'Seaborgium', m:'(269)', cat:'transition', block:'d', period:7, group:6, melt:2000, boil:5000, shells:[2,8,18,32,32,12,2], config:'[Rn] 5f¹⁴ 6d⁴ 7s²', disc:'Lawrence Berkeley National Lab (1974)', desc:'Dinamai dari ilmuwan kimiawan nuklir Amerika Glenn T. Seaborg.'},
+            {n:107, s:'Bh', name:'Bohrium', m:'(270)', cat:'transition', block:'d', period:7, group:7, melt:2000, boil:5000, shells:[2,8,18,32,32,13,2], config:'[Rn] 5f¹⁴ 6d⁵ 7s²', disc:'GSI Helmholtzzentrum Darmstadt (1981)', desc:'Dinamai dari fisikawan Denmark Niels Bohr penemu model atom.'},
+            {n:108, s:'Hs', name:'Hassium', m:'(277)', cat:'transition', block:'d', period:7, group:8, melt:2000, boil:5000, shells:[2,8,18,32,32,14,2], config:'[Rn] 5f¹⁴ 6d⁶ 7s²', disc:'GSI Darmstadt Germany (1984)', desc:'Dinamai dari negara bagian Hesse (Hassia) di Jerman.'},
+            {n:109, s:'Mt', name:'Meitnerium', m:'(278)', cat:'transition', block:'d', period:7, group:9, melt:2000, boil:5000, shells:[2,8,18,32,32,15,2], config:'[Rn] 5f¹⁴ 6d⁷ 7s²', disc:'GSI Darmstadt (1982)', desc:'Dinamai dari Lise Meitner fisikawan penemu fisismasi nuklir.'},
+            {n:110, s:'Ds', name:'Darmstadtium', m:'(281)', cat:'transition', block:'d', period:7, group:10, melt:2000, boil:5000, shells:[2,8,18,32,32,16,2], config:'[Rn] 5f¹⁴ 6d⁸ 7s²', disc:'GSI Darmstadt (1994)', desc:'Dinamai dari kota Darmstadt Jerman tempat ditemukannya unsur ini.'},
+            {n:111, s:'Rg', name:'Roentgenium', m:'(282)', cat:'transition', block:'d', period:7, group:11, melt:2000, boil:5000, shells:[2,8,18,32,32,17,2], config:'[Rn] 5f¹⁴ 6d⁹ 7s²', disc:'GSI Darmstadt (1994)', desc:'Dinamai dari Wilhelm Conrad Röntgen penemu sinar-X.'},
+            {n:112, s:'Cn', name:'Kopernisium', m:'(285)', cat:'transition', block:'d', period:7, group:12, melt:283, boil:340, shells:[2,8,18,32,32,18,2], config:'[Rn] 5f¹⁴ 6d¹⁰ 7s²', disc:'GSI Darmstadt (1996)', desc:'Dinamai untuk menghormati astronom Nicolaus Copernicus.'},
+            {n:113, s:'Nh', name:'Nihonium', m:'(286)', cat:'post-transition', block:'p', period:7, group:13, melt:700, boil:1400, shells:[2,8,18,32,32,18,3], config:'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p¹', disc:'RIKEN Japan (2004)', desc:'Unsur kimia pertama yang disintesis di benua Asia (Nihon = Jepang).'},
+            {n:114, s:'Fl', name:'Flerovium', m:'(289)', cat:'post-transition', block:'p', period:7, group:14, melt:340, boil:420, shells:[2,8,18,32,32,18,4], config:'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p²', disc:'JINR Dubna (1998)', desc:'Dinamai dari Laboratorium Reaksi Nuklir Flerov di Rusia.'},
+            {n:115, s:'Mc', name:'Moskovium', m:'(290)', cat:'post-transition', block:'p', period:7, group:15, melt:670, boil:1400, shells:[2,8,18,32,32,18,5], config:'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p³', disc:'JINR Dubna & LLNL USA (2003)', desc:'Dinamai dari wilayah Oblast Moskow tempat ditemukannya unsur ini.'},
+            {n:116, s:'Lv', name:'Livermorium', m:'(293)', cat:'post-transition', block:'p', period:7, group:16, melt:708, boil:1085, shells:[2,8,18,32,32,18,6], config:'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁴', disc:'JINR Dubna & LLNL (2000)', desc:'Dinamai dari Lawrence Livermore National Laboratory di California.'},
+            {n:117, s:'Ts', name:'Tenesin', m:'(294)', cat:'halogen', block:'p', period:7, group:17, melt:723, boil:883, shells:[2,8,18,32,32,18,7], config:'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁵', disc:'Dubna Russia & Oak Ridge USA (2010)', desc:'Dinamai dari negara bagian Tennessee USA lokasi laboratorium Oak Ridge.'},
+            {n:118, s:'Og', name:'Oganesson', m:'(294)', cat:'noble', block:'p', period:7, group:18, melt:325, boil:350, shells:[2,8,18,32,32,18,8], config:'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁸', disc:'JINR Dubna & LLNL (2002)', desc:'Unsur nomor atom tertinggi dalam tabel periodik saat ini. Dinamai dari Yuri Oganessian.'}
+        ];
+
+        // Web Audio API Synthesizer
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'hover') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'click') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'mode') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(900, now + 0.25);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        // Sound toggle control
+        document.getElementById('soundToggleBtn').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            icon.className = soundEnabled ? 'fa-solid fa-volume-high text-sm' : 'fa-solid fa-volume-xmark text-sm text-red-400';
+        });
+
+        // Cosmic Canvas Particles Background
+        const bgCanvas = document.getElementById('bgCanvas');
+        const ctx = bgCanvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        for (let i = 0; i < 90; i++) {
+            particles.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                r: Math.random() * 2 + 0.5,
+                alpha: Math.random() * 0.7 + 0.2,
+                speedX: (Math.random() - 0.5) * 0.3,
+                speedY: (Math.random() - 0.5) * 0.3,
+            });
+        }
+
+        function animateBG() {
+            ctx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+            
+            // Subtle nebula background gradient
+            const grad = ctx.createRadialGradient(bgCanvas.width/2, bgCanvas.height/2, 100, bgCanvas.width/2, bgCanvas.height/2, Math.max(bgCanvas.width, bgCanvas.height));
+            grad.addColorStop(0, '#0a1026');
+            grad.addColorStop(1, '#050814');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+            // Draw glowing stars
+            particles.forEach(p => {
+                p.x += p.speedX;
+                p.y += p.speedY;
+
+                if (p.x < 0) p.x = bgCanvas.width;
+                if (p.x > bgCanvas.width) p.x = 0;
+                if (p.y < 0) p.y = bgCanvas.height;
+                if (p.y > bgCanvas.height) p.y = 0;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(56, 189, 248, ${p.alpha})`;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#38bdf8';
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animateBG);
+        }
+        animateBG();
+
+        // 3D Layout Stage Math Engine
+        const world3d = document.getElementById('world3d');
+        const elementCardsMap = new Map();
+        let currentMode = 'grid';
+        let currentTempK = 298;
+
+        // Viewport camera rotation variables
+        let rotX = 0;
+        let rotY = 0;
+        let zoom = 1;
+        let isDragging = false;
+        let startX = 0, startY = 0;
+
+        // Calculate positions for each layout mode
+        function computeLayoutPositions() {
+            const total = elementsData.length;
+
+            elementsData.forEach((el, i) => {
+                const pos = {
+                    grid: { x: 0, y: 0, z: 0, rx: 0, ry: 0 },
+                    sphere: { x: 0, y: 0, z: 0, rx: 0, ry: 0 },
+                    helix: { x: 0, y: 0, z: 0, rx: 0, ry: 0 },
+                    cloud: { x: 0, y: 0, z: 0, rx: 0, ry: 0 },
+                    block: { x: 0, y: 0, z: 0, rx: 0, ry: 0 }
+                };
+
+                // --- 1. Mode: Grid (Standard 18-Column + Lanthanides/Actinides) ---
+                const cellW = 78;
+                const cellH = 94;
+                let col = el.group;
+                let row = el.period;
+
+                // Lanthanides & Actinides positioning
+                if (el.n >= 57 && el.n <= 71) {
+                    col = el.n - 57 + 3;
+                    row = 8.5;
+                } else if (el.n >= 89 && el.n <= 103) {
+                    col = el.n - 89 + 3;
+                    row = 9.6;
+                }
+
+                pos.grid.x = (col - 9.5) * cellW;
+                pos.grid.y = (row - 5) * cellH;
+                pos.grid.z = 0;
+
+                // --- 2. Mode: 3D Sphere ---
+                const radiusSphere = 500;
+                const phi = Math.acos(-1 + (2 * i + 1) / total);
+                const theta = Math.sqrt(total * Math.PI) * phi;
+
+                pos.sphere.x = radiusSphere * Math.cos(theta) * Math.sin(phi);
+                pos.sphere.y = radiusSphere * Math.sin(theta) * Math.sin(phi);
+                pos.sphere.z = radiusSphere * Math.cos(phi);
+
+                // Orient sphere cards facing outward
+                pos.sphere.ry = Math.atan2(pos.sphere.x, pos.sphere.z) * (180 / Math.PI);
+                pos.sphere.rx = -Math.atan2(pos.sphere.y, Math.sqrt(pos.sphere.x * pos.sphere.x + pos.sphere.z * pos.sphere.z)) * (180 / Math.PI);
+
+                // --- 3. Mode: 3D Helix (Cylinder) ---
+                const radiusHelix = 450;
+                const thetaHelix = i * 0.35;
+                const yStep = 13;
+
+                pos.helix.x = radiusHelix * Math.sin(thetaHelix);
+                pos.helix.y = (i - total / 2) * yStep;
+                pos.helix.z = radiusHelix * Math.cos(thetaHelix);
+                pos.helix.ry = thetaHelix * (180 / Math.PI);
+
+                // --- 4. Mode: Floating Cosmic Cloud ---
+                const seed = i * 137.5;
+                const rCloud = 380 + (i % 5) * 45;
+                pos.cloud.x = rCloud * Math.sin(seed) * Math.cos(i);
+                pos.cloud.y = rCloud * Math.sin(seed) * Math.sin(i);
+                pos.cloud.z = rCloud * Math.cos(seed);
+                pos.cloud.ry = (i * 30) % 360;
+
+                // --- 5. Mode: Orbital Blocks (s, p, d, f) ---
+                let blockCol = 0, blockRow = 0, blockZ = 0;
+                if (el.block === 's') {
+                    blockCol = (el.n % 2) - 10;
+                    blockRow = Math.floor(el.n / 2) - 4;
+                    blockZ = -100;
+                } else if (el.block === 'p') {
+                    blockCol = (el.n % 6) + 4;
+                    blockRow = Math.floor(el.n / 6) - 4;
+                    blockZ = -100;
+                } else if (el.block === 'd') {
+                    blockCol = (el.n % 10) - 4;
+                    blockRow = Math.floor(el.n / 10) - 2;
+                    blockZ = 100;
+                } else { // f block
+                    blockCol = (el.n % 14) - 6;
+                    blockRow = Math.floor(el.n / 14) + 3;
+                    blockZ = 250;
+                }
+
+                pos.block.x = blockCol * cellW;
+                pos.block.y = blockRow * cellH;
+                pos.block.z = blockZ;
+
+                el.positions = pos;
+            });
+        }
+
+        // Calculate element physical phase (Solid, Liquid, Gas) based on Kelvin temp
+        function getPhaseAtTemp(el, tempK) {
+            if (el.melt === null || el.melt === undefined) return 'Lainnya';
+            if (tempK < el.melt) return 'Padat';
+            if (el.boil && tempK >= el.boil) return 'Gas';
+            return 'Cair';
+        }
+
+        // Render Cards into DOM
+        function createDOMCards() {
+            computeLayoutPositions();
+            world3d.innerHTML = '';
+
+            elementsData.forEach(el => {
+                const card = document.createElement('div');
+                card.className = `element-card cat-${el.cat}`;
+                card.dataset.num = el.n;
+                card.dataset.cat = el.cat;
+
+                const phase = getPhaseAtTemp(el, currentTempK);
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center text-[10px] text-slate-400 font-mono">
+                        <span>${el.n}</span>
+                        <span class="phase-badge text-[9px] px-1 rounded bg-slate-800/80">${phase}</span>
+                    </div>
+                    <div class="text-center my-auto">
+                        <div class="text-xl font-black text-white tracking-tight leading-none">${el.s}</div>
+                        <div class="text-[10px] font-medium text-slate-300 truncate mt-0.5">${el.name}</div>
+                    </div>
+                    <div class="text-[9px] text-center text-slate-400 font-mono truncate">${el.m}</div>
+                `;
+
+                // Hover sound effect
+                card.addEventListener('mouseenter', () => playSound('hover'));
+
+                // Click event to open details modal
+                card.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    playSound('click');
+                    openElementModal(el);
+                });
+
+                world3d.appendChild(card);
+                elementCardsMap.set(el.n, card);
+            });
+
+            updateCardsPosition();
+        }
+
+        // Update CSS Transforms of cards depending on current layout mode
+        function updateCardsPosition() {
+            elementsData.forEach(el => {
+                const card = elementCardsMap.get(el.n);
+                if (!card) return;
+
+                const p = el.positions[currentMode];
+                card.style.transform = `translate3d(${p.x}px, ${p.y}px, ${p.z}px) rotateX(${p.rx || 0}deg) rotateY(${p.ry || 0}deg)`;
+            });
+        }
+
+        // Update 3D Stage Rotation
+        function updateWorldTransform() {
+            world3d.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${zoom})`;
+        }
+
+        // Mouse / Touch 3D Drag Control Engine
+        const viewport = document.getElementById('viewport');
+
+        viewport.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+
+            rotY += deltaX * 0.3;
+            rotX -= deltaY * 0.3;
+
+            // Clamp vertical pitch rotation
+            rotX = Math.max(-85, Math.min(85, rotX));
+
+            startX = e.clientX;
+            startY = e.clientY;
+            updateWorldTransform();
+        });
+
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        // Zoom via Mouse Wheel
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            zoom += e.deltaY * -0.001;
+            zoom = Math.max(0.35, Math.min(2.5, zoom));
+            updateWorldTransform();
+        }, { passive: false });
+
+        // Touch gestures for mobile devices
+        viewport.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }
+        });
+
+        viewport.addEventListener('touchmove', (e) => {
+            if (!isDragging || e.touches.length !== 1) return;
+            const deltaX = e.touches[0].clientX - startX;
+            const deltaY = e.touches[0].clientY - startY;
+
+            rotY += deltaX * 0.4;
+            rotX -= deltaY * 0.4;
+            rotX = Math.max(-85, Math.min(85, rotX));
+
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            updateWorldTransform();
+        });
+
+        viewport.addEventListener('touchend', () => isDragging = false);
+
+        // Reset Camera Viewport
+        document.getElementById('resetViewBtn').addEventListener('click', () => {
+            rotX = 0;
+            rotY = 0;
+            zoom = 1;
+            updateWorldTransform();
+        });
+
+        // Layout Mode Switching Buttons
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => {
+                    b.classList.remove('bg-sky-500', 'text-white', 'active');
+                    b.classList.add('bg-slate-800', 'text-slate-300');
+                });
+                btn.classList.remove('bg-slate-800', 'text-slate-300');
+                btn.classList.add('bg-sky-500', 'text-white', 'active');
+
+                currentMode = btn.dataset.mode;
+                playSound('mode');
+
+                // Smooth rotation reset for clean alignment in Grid or Block modes
+                if (currentMode === 'grid' || currentMode === 'block') {
+                    rotX = 0;
+                    rotY = 0;
+                    zoom = 1;
+                    updateWorldTransform();
+                }
+
+                updateCardsPosition();
+            });
+        });
+
+        // Category Filter Tabs
+        document.querySelectorAll('.cat-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cat-filter').forEach(b => {
+                    b.classList.remove('active', 'bg-sky-500/20', 'border-sky-400');
+                });
+                btn.classList.add('active', 'bg-sky-500/20', 'border-sky-400');
+
+                const selectedCat = btn.dataset.cat;
+                playSound('click');
+
+                elementsData.forEach(el => {
+                    const card = elementCardsMap.get(el.n);
+                    if (!card) return;
+
+                    if (selectedCat === 'all' || el.cat === selectedCat) {
+                        card.classList.remove('dimmed');
+                    } else {
+                        card.classList.add('dimmed');
+                    }
+                });
+            });
+        });
+
+        // Real-Time Search Filter Input
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+
+            elementsData.forEach(el => {
+                const card = elementCardsMap.get(el.n);
+                if (!card) return;
+
+                const matchName = el.name.toLowerCase().includes(query);
+                const matchSymbol = el.s.toLowerCase().includes(query);
+                const matchNum = el.n.toString() === query;
+
+                if (!query || matchName || matchSymbol || matchNum) {
+                    card.classList.remove('dimmed');
+                } else {
+                    card.classList.add('dimmed');
+                }
+            });
+        });
+
+        // Interactive Temperature Slider
+        const tempSlider = document.getElementById('tempSlider');
+        const tempValue = document.getElementById('tempValue');
+
+        tempSlider.addEventListener('input', (e) => {
+            currentTempK = parseInt(e.target.value, 10);
+            const tempC = (currentTempK - 273.15).toFixed(0);
+            tempValue.textContent = `${currentTempK} K (${tempC} °C)`;
+
+            // Update state badges on all element cards
+            elementsData.forEach(el => {
+                const card = elementCardsMap.get(el.n);
+                if (!card) return;
+
+                const phaseBadge = card.querySelector('.phase-badge');
+                if (phaseBadge) {
+                    const phase = getPhaseAtTemp(el, currentTempK);
+                    phaseBadge.textContent = phase;
+
+                    // Color code phase badge
+                    if (phase === 'Padat') phaseBadge.className = 'phase-badge text-[9px] px-1 rounded bg-blue-900/80 text-blue-200';
+                    else if (phase === 'Cair') phaseBadge.className = 'phase-badge text-[9px] px-1 rounded bg-teal-900/80 text-teal-200';
+                    else if (phase === 'Gas') phaseBadge.className = 'phase-badge text-[9px] px-1 rounded bg-orange-900/80 text-orange-200';
+                    else phaseBadge.className = 'phase-badge text-[9px] px-1 rounded bg-slate-800/80 text-slate-400';
+                }
+            });
+        });
+
+        // Bohr Atom Model Visualizer Canvas
+        const bohrCanvas = document.getElementById('bohrCanvas');
+        const bohrCtx = bohrCanvas.getContext('2d');
+        let bohrAnimId = null;
+        let currentBohrElement = null;
+        let bohrAngle = 0;
+
+        function drawBohrModel() {
+            bohrCtx.clearRect(0, 0, bohrCanvas.width, bohrCanvas.height);
+            if (!currentBohrElement) return;
+
+            const centerX = bohrCanvas.width / 2;
+            const centerY = bohrCanvas.height / 2;
+            const shells = currentBohrElement.shells || [1];
+
+            // 1. Draw glowing central nucleus
+            bohrCtx.beginPath();
+            bohrCtx.arc(centerX, centerY, 16, 0, Math.PI * 2);
+            const nucGrad = bohrCtx.createRadialGradient(centerX, centerY, 2, centerX, centerY, 16);
+            nucGrad.addColorStop(0, '#60a5fa');
+            nucGrad.addColorStop(1, '#1d4ed8');
+            bohrCtx.fillStyle = nucGrad;
+            bohrCtx.shadowBlur = 12;
+            bohrCtx.shadowColor = '#3b82f6';
+            bohrCtx.fill();
+
+            // Nucleus Symbol Text
+            bohrCtx.shadowBlur = 0;
+            bohrCtx.fillStyle = '#ffffff';
+            bohrCtx.font = 'bold 11px Inter';
+            bohrCtx.textAlign = 'center';
+            bohrCtx.textBaseline = 'middle';
+            bohrCtx.fillText(currentBohrElement.s, centerX, centerY);
+
+            // 2. Draw Electron Orbits & Orbiting Electrons
+            const maxRadius = 110;
+            const radiusStep = (maxRadius - 30) / Math.max(1, shells.length);
+
+            bohrAngle += 0.02;
+
+            shells.forEach((electronCount, shellIdx) => {
+                const r = 32 + shellIdx * radiusStep;
+
+                // Draw orbital shell circle path
+                bohrCtx.beginPath();
+                bohrCtx.arc(centerX, centerY, r, 0, Math.PI * 2);
+                bohrCtx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+                bohrCtx.lineWidth = 1;
+                bohrCtx.stroke();
+
+                // Draw electrons on shell
+                const dir = shellIdx % 2 === 0 ? 1 : -1; // alternate rotation direction
+                const speedMult = 1 / (shellIdx + 1);
+
+                for (let e = 0; e < electronCount; e++) {
+                    const angle = (e * (2 * Math.PI / electronCount)) + (bohrAngle * dir * speedMult);
+                    const ex = centerX + r * Math.cos(angle);
+                    const ey = centerY + r * Math.sin(angle);
+
+                    bohrCtx.beginPath();
+                    bohrCtx.arc(ex, ey, 4, 0, Math.PI * 2);
+                    bohrCtx.fillStyle = '#38bdf8';
+                    bohrCtx.shadowBlur = 8;
+                    bohrCtx.shadowColor = '#38bdf8';
+                    bohrCtx.fill();
+                    bohrCtx.shadowBlur = 0;
+                }
+            });
+
+            bohrAnimId = requestAnimationFrame(drawBohrModel);
+        }
+
+        // Open Element Detail Modal
+        const elementModal = document.getElementById('elementModal');
+        const modalContainer = document.getElementById('modalContainer');
+
+        function openElementModal(el) {
+            currentBohrElement = el;
+
+            // Category Label & Badge Colors
+            const catNames = {
+                'alkali': 'Logam Alkali',
+                'alkaline': 'Alkali Tanah',
+                'transition': 'Logam Transisi',
+                'post-transition': 'Pasca Transisi',
+                'metalloid': 'Metaloid',
+                'nonmetal': 'Nonlogam Reaktif',
+                'halogen': 'Halogen',
+                'noble': 'Gas Mulia',
+                'lanthanide': 'Lantanida',
+                'actinide': 'Aktinida'
+            };
+
+            const catBadge = document.getElementById('modalCategoryBadge');
+            catBadge.textContent = catNames[el.cat] || el.cat;
+            catBadge.className = `inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mb-3 cat-${el.cat} text-white`;
+
+            document.getElementById('modalElementName').textContent = el.name;
+            document.getElementById('modalLatinName').textContent = `${el.name} (${el.s})`;
+            document.getElementById('modalAtomicNumber').textContent = el.n;
+            document.getElementById('modalAtomicMass').textContent = `${el.m} u`;
+
+            document.getElementById('modalDescription').textContent = el.desc;
+
+            // Physical & Chemical Properties
+            document.getElementById('modalPhase').textContent = getPhaseAtTemp(el, 298);
+            document.getElementById('modalElectronConfig').textContent = el.config;
+            document.getElementById('modalMelting').textContent = el.melt ? `${el.melt} K (${(el.melt - 273.15).toFixed(1)} °C)` : 'Tidak Diketahui';
+            document.getElementById('modalBoiling').textContent = el.boil ? `${el.boil} K (${(el.boil - 273.15).toFixed(1)} °C)` : 'Tidak Diketahui';
+            document.getElementById('modalBlock').textContent = `${el.block.toUpperCase()}-block`;
+            document.getElementById('modalPeriodGroup').textContent = `Periode ${el.period}, Golongan ${el.group}`;
+
+            document.getElementById('modalDiscoverer').textContent = el.disc;
+
+            // Show modal transition
+            elementModal.classList.remove('opacity-0', 'pointer-events-none');
+            modalContainer.classList.remove('scale-95');
+            modalContainer.classList.add('scale-100');
+
+            // Start Bohr Model Canvas Animation
+            if (bohrAnimId) cancelAnimationFrame(bohrAnimId);
+            drawBohrModel();
+        }
+
+        // Close Modal Handler
+        function closeModal() {
+            elementModal.classList.add('opacity-0', 'pointer-events-none');
+            modalContainer.classList.remove('scale-100');
+            modalContainer.classList.add('scale-95');
+            if (bohrAnimId) cancelAnimationFrame(bohrAnimId);
+        }
+
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        elementModal.addEventListener('click', (e) => {
+            if (e.target === elementModal) closeModal();
+        });
+
+        // Initialize App on Page Load
+        window.onload = function() {
+            createDOMCards();
+        };
+    </script>
+</body>
+</html>
